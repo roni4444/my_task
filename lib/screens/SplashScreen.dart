@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:timezone/data/latest.dart' as ltz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 import 'MyHomePage.dart';
@@ -31,23 +34,6 @@ void callbackDispatcher() {
         print("iOS background fetch delegate ran");
         break;
       case alarm:
-        /*List _list = inputdata.values.toList();
-        List flattenList = _list.expand((number) => number).toList();
-        flutterLocalNotificationsPlugin.initialize(initializationSettings,
-            onSelectNotification: selectNotification);
-        //flutterLocalNotificationsPlugin.cancel(0);
-        //FlutterRingtonePlayer.stop();
-        flutterLocalNotificationsPlugin.show(
-            0, 'My Task', flattenList[1], platformChannelSpecifics,
-            payload: flattenList[1]);
-        //showNotification(flattenList[1], flattenList[3]);*/
-        FlutterRingtonePlayer.playAlarm(
-          //android: AndroidSounds.alarm,
-          //ios: IosSounds.alarm,
-          //looping: true, // Android only - API >= 28
-          //volume: 0.1, // Android only - API >= 28
-          asAlarm: true, // Android only - all APIs
-        );
         FlutterRingtonePlayer.playAlarm(
           //android: AndroidSounds.alarm,
           //ios: IosSounds.alarm,
@@ -74,22 +60,6 @@ class SplashScreen extends StatefulWidget {
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
-
-FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
-AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('app_icon');
-
-InitializationSettings initializationSettings = InitializationSettings(
-  android: initializationSettingsAndroid,
-);
-AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-        'your channel id', 'your channel name', 'your channel description',
-        importance: Importance.high, priority: Priority.high, showWhen: false);
-NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
 
 const myTask = "syncWithTheBackEnd";
 const alarm = "setalarm";
@@ -138,6 +108,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
+    ltz.initializeTimeZones();
     // needs to be initialized before using workmanager package
     WidgetsFlutterBinding.ensureInitialized();
 
@@ -159,6 +130,27 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   bool setNewAlarm() {
+    FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('app_icon');
+
+    InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+
+    AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+            'your channel id', 'your channel name', 'your channel description',
+            importance: Importance.high,
+            priority: Priority.high,
+            showWhen: false);
+
+    NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    flutterLocalNotificationsPlugin
+        .show(0, 'My Task', "name", platformChannelSpecifics, payload: "name");
     //WidgetsFlutterBinding.ensureInitialized();
     //Workmanager.initialize(callbackDispatcher);
     //DateTime _currentDate = new DateTime(new DateTime.now().year, new DateTime.now().month, new DateTime.now().day);
@@ -180,13 +172,18 @@ class _SplashScreenState extends State<SplashScreen> {
                 querySnapshot.docs.forEach(
                   (doc) {
                     print(doc.id);
-                    //int alarmId = Random().nextInt(pow(2, 31));
+                    int alarmId = Random().nextInt(pow(2, 31));
                     Timestamp time = doc['DateTime'];
                     DateTime datetime = time.toDate();
                     Timestamp ts = Timestamp.now();
                     DateTime nowdatetime = ts.toDate();
                     int diff = datetime.difference(nowdatetime).inSeconds;
+                    int xdiff = datetime
+                        .difference(DateTime(datetime.year, datetime.month,
+                            datetime.day, 0, 0, 0))
+                        .inSeconds;
                     print(diff);
+                    print(xdiff);
                     if (diff > 0) {
                       Workmanager.initialize(callbackDispatcher,
                           isInDebugMode: true);
@@ -198,6 +195,28 @@ class _SplashScreenState extends State<SplashScreen> {
                             'name': doc['Name'],
                             'priority': doc['Priority'],
                           });
+                      var detroit = tz.getLocation('Asia/Kolkata');
+                      tz.TZDateTime schdate = tz.TZDateTime.now(detroit).add(
+                        Duration(seconds: diff),
+                      );
+                      print(schdate);
+                      flutterLocalNotificationsPlugin
+                          .zonedSchedule(
+                              --alarmId,
+                              "My Task",
+                              doc['Name'],
+                              schdate,
+                              const NotificationDetails(
+                                android: AndroidNotificationDetails(
+                                    'your channel id',
+                                    'your channel name',
+                                    'your channel description'),
+                              ),
+                              uiLocalNotificationDateInterpretation: null,
+                              androidAllowWhileIdle: true)
+                          .catchError((error) {
+                        print("hello");
+                      });
                       firestore
                           .collection("My Task")
                           .doc("App")
