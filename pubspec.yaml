@@ -1,0 +1,42 @@
+name: my_task
+description: Task management flutter application.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.7.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.0
+  flutter_calendar_carousel: ^1.5.1
+  flutter_ringtone_player: ^2.0.0
+  flutter_local_notifications: ^3.0.1+2
+  workmanager: ^0.2.3
+  timezone: ^0.5.9
+  firebase_core: ^0.5.1
+  cloud_firestore: ^0.14.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+flutter:
+
+
+  uses-material-design: true
+
+
+  assets:
+    - images/
+
+
+  fonts:
+   - family: LibreBaskerville
+     fonts:
+       - asset: fonts/LibreBaskerville-Bold.ttf
